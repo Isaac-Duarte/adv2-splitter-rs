@@ -1,0 +1,10 @@
+[package]
+name = "adv2-splitter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gmod-lzma = "*"
+pico-args = "0.5.0"
