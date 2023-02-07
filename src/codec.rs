@@ -55,16 +55,25 @@ pub trait AdCodec {
 }
 
 pub struct DuplicationResult {
-    pub(crate) info: DuplicationInfo,
-    pub(crate) value: LuaValue,
+    info: DuplicationInfo,
+    value: LuaValue,
 }
 
 impl DuplicationResult {
     pub fn info(&self) -> &DuplicationInfo {
         &self.info
     }
+
+    pub fn info_mut(&mut self) -> &mut DuplicationInfo {
+        &mut self.info
+    }
+
     pub fn value(&self) -> &LuaValue {
         &self.value
+    }
+
+    pub fn value_mut(&mut self) -> &mut LuaValue {
+        &mut self.value
     }
 }
 
@@ -146,6 +155,135 @@ impl Hash for LuaValue {
             LuaValue::Vector(_) => {}
             LuaValue::Angle(_) => {}
             LuaValue::Bool(b) => b.hash(state),
+        }
+    }
+}
+
+impl LuaValue {
+    pub fn is_array(&self) -> bool {
+        self.as_array().is_some()
+    }
+
+    pub fn as_array(&self) -> Option<&Vec<LuaValue>> {
+        match self {
+            LuaValue::Array(array) => Some(array),
+            _ => None,
+        }
+    }
+
+    pub fn as_array_mut(&mut self) -> Option<&mut Vec<LuaValue>> {
+        match self {
+            LuaValue::Array(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        self.as_str().is_some()
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            LuaValue::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn is_double(&self) -> bool {
+        match *self {
+            LuaValue::Double(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_double(&self) -> Option<f64> {
+        match *self {
+            LuaValue::Double(double) => Some(double),
+            _ => None
+        }
+    }
+
+    pub fn as_double_mut(&mut self) -> Option<&mut f64> {
+        match self {
+            LuaValue::Double(double) => Some(double),
+            _ => None
+        }
+    }
+
+    pub fn is_table(&self) -> bool {
+        match *self {
+            LuaValue::Table(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_table(&self) -> Option<&HashMap<LuaValue, LuaValue>> {
+        match self {
+            LuaValue::Table(table) => Some(table),
+            _ => None
+        }
+    }
+
+    pub fn as_table_mut(&mut self) -> Option<&mut HashMap<LuaValue, LuaValue>> {
+        match self {
+            LuaValue::Table(table) => Some(table),
+            _ => None
+        }
+    }
+
+    pub fn is_vector(&self) -> bool {
+        match *self {
+            LuaValue::Vector(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_vector(&self) -> Option<&Vec<f64>> {
+        match self {
+            LuaValue::Vector(vector) => Some(vector),
+            _ => None
+        }
+    }
+
+    pub fn as_vector_mut(&mut self) -> Option<&mut Vec<f64>> {
+        match self {
+            LuaValue::Vector(vector) => Some(vector),
+            _ => None
+        }
+    }
+
+    pub fn is_angle(&self) -> bool {
+        match *self {
+            LuaValue::Angle(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_angle(&self) -> Option<&Vec<f64>> {
+        match self {
+            LuaValue::Angle(angle) => Some(angle),
+            _ => None
+        }
+    }
+
+    pub fn as_angle_mut(&mut self) -> Option<&mut Vec<f64>> {
+        match self {
+            LuaValue::Angle(angle) => Some(angle),
+            _ => None
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        match *self {
+            LuaValue::Bool(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match *self {
+            LuaValue::Bool(boolean) => Some(boolean),
+            _ => None
         }
     }
 }

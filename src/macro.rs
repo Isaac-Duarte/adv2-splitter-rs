@@ -12,6 +12,48 @@ macro_rules! lua_string {
     };
 }
 
+#[macro_export]
+macro_rules! lua_array {
+    ($x:expr) => {
+        LuaValue::Array($x)
+    };
+}
+
+#[macro_export]
+macro_rules! lua_table {
+    ($x:expr) => {
+        LuaValue::Table($x)
+    };
+}
+
+#[macro_export]
+macro_rules! lua_vector {
+    ($x:expr) => {
+        LuaValue::Vector($x)
+    };
+}
+
+#[macro_export]
+macro_rules! lua_angle {
+    ($x:expr) => {
+        LuaValue::Angle($x)
+    };
+}
+
+#[macro_export]
+macro_rules! lua_bool {
+    ($x:expr) => {
+        LuaValue::Bool($x)
+    };
+}
+
+#[macro_export]
+macro_rules! lua_double {
+    ($x:expr) => {
+        LuaValue::Double($x)
+    };
+}
+
 /// Returns an optional of a `LuaValue` given the enum type
 ///
 /// # Example
