@@ -30,12 +30,11 @@ ARGS:
     <FILE>
 ";
 
-
 #[derive(Debug)]
 struct AppArgs {
     file: PathBuf,
     size: Option<usize>,
-    print: bool
+    print: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -64,7 +63,7 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     let args = AppArgs {
         file: pargs.free_from_str()?,
         size: pargs.opt_value_from_str("--size")?,
-        print: pargs.contains(["-p", "--print"])
+        print: pargs.contains(["-p", "--print"]),
     };
 
     // It's up to the caller what to do with the remaining arguments.
@@ -74,6 +73,59 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     }
 
     Ok(args)
+}
+
+fn perform_split(args: &AppArgs) -> Result<(), Box<dyn Error>> {
+    let input_file = File::open(&args.file).expect("Unable to open file");
+    let result = advanced_dupe::decode(input_file).expect("Unable to decode file");
+
+    if args.print {
+        advanced_dupe::print_result(&result);
+    }
+
+    // Find the entities table
+    let table = result.value().as_table().expect("Invalid format for AD5");
+
+    let entities = table
+        .get(&lua_string!("Entities"))
+        .expect("Unable to find entities table");
+    let entity_map = entities.as_table().expect("Entity table is not a table");
+
+    // This will be all entities in the map
+    let split_lua_values;
+    {
+        if let Some(size) = args.size {
+            let split_maps = split_map(entity_map, size);
+
+            split_lua_values = match split_lua_tables(&result.value(), &split_maps) {
+                Ok(val) => val,
+                Err(_) => {
+                    return Err(Box::new(std::io::Error::new(
+                        ErrorKind::InvalidData,
+                        "Unable to split the table",
+                    )));
+                }
+            };
+        } else {
+            split_lua_values = vec![result.value().clone()];
+        }
+    }
+
+    let file_name = args.file.file_name().unwrap().to_str().unwrap();
+    let extension = args.file.extension().unwrap().to_str().unwrap();
+    let file_name = file_name.replace(extension, "");
+    let file_name = file_name.trim_end_matches(".");
+
+    for i in 0..split_lua_values.len() {
+        let lua_value = split_lua_values.get(i).unwrap();
+        let file_name = format!("{}-{}.txt", file_name, i);
+
+        let output_file = File::create(file_name)?;
+        let mut out_stream = BufWriter::new(output_file);
+        advanced_dupe::encode(result.info(), lua_value, &mut out_stream)?;
+    }
+
+    Ok(())
 }
 
 /// Splits a Lua table into multiple tables using a provided `split_maps` vector.
@@ -100,7 +152,7 @@ fn split_lua_tables(
         let mut split_value =
             get_lua_value!(Table, base_clone.clone()).expect("base_clone must be a table");
 
-        split_value.insert(lua_string!("Entities"), LuaValue::Table(split.clone()));
+        split_value.insert(lua_string!("Entities"), lua_table!(split.clone()));
 
         // We need to reset the head entity to the first entity in the table
         let val = get_lua_value!(
@@ -117,64 +169,13 @@ fn split_lua_tables(
         val.insert(lua_string!("Index"), first.clone()).unwrap();
 
         // Reset the head ent
-        split_value.insert(lua_string!("HeadEnt"), LuaValue::Table(val));
+        split_value.insert(lua_string!("HeadEnt"), lua_table!(val));
 
         // Push the Table into the split value
-        splits.push(LuaValue::Table(split_value));
+        splits.push(lua_table!(split_value));
     }
 
     Ok(splits)
-}
-
-fn perform_split(args: &AppArgs) -> Result<(), Box<dyn Error>> {
-    let input_file = File::open(&args.file).expect("Unable to open file");
-    let result = advanced_dupe::decode(input_file).expect("Unable to decode file");
-
-    if args.print {
-        advanced_dupe::print_result(&result);
-    }
-
-    // Find the entities table
-    let (_, entities) = find_key_in_table("Entities", &result.value());
-    let entities = entities.expect("Unable to find entities table");
-
-    let entity_map = get_lua_value!(Table, entities).expect("Entity table is not a table");
-
-    // This will be all entities in the map
-    let split_lua_values;
-    {
-        if let Some(size) = args.size {
-            let split_maps = split_map(entity_map, size);
-
-            split_lua_values = match split_lua_tables(&result.value, &split_maps) {
-                Ok(val) => val,
-                Err(_) => {
-                    return Err(Box::new(std::io::Error::new(
-                        ErrorKind::InvalidData,
-                        "Unable to split the table",
-                    )));
-                }
-            };
-        } else {
-            split_lua_values = vec![result.value.clone()];
-        }
-    }
-
-    let file_name = args.file.file_name().unwrap().to_str().unwrap();
-    let extension = args.file.extension().unwrap().to_str().unwrap();
-    let file_name = file_name.replace(extension, "");
-    let file_name = file_name.trim_end_matches(".");
-
-    for i in 0..split_lua_values.len() {
-        let lua_value = split_lua_values.get(i).unwrap();
-        let file_name = format!("{}-{}.txt", file_name, i);
-
-        let output_file = File::create(file_name)?;
-        let mut out_stream = BufWriter::new(output_file);
-        advanced_dupe::encode(result.info(), lua_value, &mut out_stream)?;
-    }
-
-    Ok(())
 }
 
 /// Splits the given `map` into `n` chunks.
@@ -230,9 +231,8 @@ fn split_map(map: &HashMap<LuaValue, LuaValue>, n: usize) -> Vec<HashMap<LuaValu
 
     // If there are items remaining in the chunk, add the chunk to the chunks vec
     if !chunk.is_empty() {
-
         if chunks.is_empty() {
-           chunks.push(chunk);
+            chunks.push(chunk);
         } else {
             let last_chunk = chunks.last_mut().unwrap();
 
@@ -243,37 +243,4 @@ fn split_map(map: &HashMap<LuaValue, LuaValue>, n: usize) -> Vec<HashMap<LuaValu
     }
 
     chunks
-}
-
-/// Returns the key and value of the first table entry with the specified key
-///
-/// # Arguments
-///
-/// * `key` - A string slice containing the key to search for.
-/// * `value` - A reference to the `LuaValue` to search.
-///
-/// # Return
-///
-/// A tuple with two options: the first element is an option containing the key, and the second element is an option containing the value.
-/// If the key is not found in the table, both elements are None.
-fn find_key_in_table<'a>(
-    key: &str,
-    value: &'a LuaValue,
-) -> (Option<&'a LuaValue>, Option<&'a LuaValue>) {
-    let value = get_lua_value!(Table, value);
-
-    return match value {
-        None => (None, None),
-        Some(table) => {
-            for (k, v) in table {
-                if let Some(table_key) = get_lua_value!(String, k) {
-                    if key == table_key {
-                        return (Some(k), Some(v));
-                    }
-                }
-            }
-
-            (None, None)
-        }
-    };
 }
